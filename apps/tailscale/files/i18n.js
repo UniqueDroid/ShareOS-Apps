@@ -49,6 +49,10 @@
       // Banner offline / erro
       'banner.offline.title': '⚠️ Tailscale daemon (tailscaled) não respondeu.',
       'banner.offline.desc': 'Certifique-se de que o Tailscale está rodando na box. Você pode iniciar o serviço pelo terminal ou configurar o endpoint da API.',
+      'banner.notInstalled.title': '⚠️ Tailscale não instalado.',
+      'banner.notInstalled.desc': 'A System App „tailscaled“ precisa estar instalada na box. Abra a Loja de Aplicativos do ShareOS e instale o pacote Tailscaled.',
+      'banner.noAccess': 'Acesso negado – O Tailscale altera a rede de toda a box e é restrito a administradores.',
+      'banner.noTun': 'Esta versão de firmware não possui suporte a TUN (/dev/net/tun) – atualize o ShareOS.',
       'banner.offline.retry': 'Tentar Novamente',
       'banner.offline.cfg': 'Configurar Endpoint',
       'banner.offline.demo': 'Modo Demonstração',
@@ -192,6 +196,10 @@
       // Banner offline
       'banner.offline.title': '⚠️ Tailscale daemon (tailscaled) is unreachable.',
       'banner.offline.desc': 'Ensure Tailscale is running on the box. You can launch the daemon in the terminal or configure the API URL.',
+      'banner.notInstalled.title': '⚠️ Tailscale is not installed.',
+      'banner.notInstalled.desc': 'The system app „tailscaled“ is required on the box. Install the „tailscaled“ system app from the ShareOS App Store.',
+      'banner.noAccess': 'Access denied – Tailscale configures system-wide network routing and is restricted to administrators.',
+      'banner.noTun': 'This firmware build has no tunnel (TUN) support (/dev/net/tun) – update ShareOS.',
       'banner.offline.retry': 'Retry',
       'banner.offline.cfg': 'Configure Endpoint',
       'banner.offline.demo': 'Demo Mode',
@@ -335,6 +343,10 @@
       // Banner offline
       'banner.offline.title': '⚠️ Tailscale-Daemon (tailscaled) nicht erreichbar.',
       'banner.offline.desc': 'Stellen Sie sicher, dass Tailscale auf der Box läuft. Sie können den Dienst im Terminal starten oder den API-Endpunkt anpassen.',
+      'banner.notInstalled.title': '⚠️ Tailscale ist nicht installiert.',
+      'banner.notInstalled.desc': 'Die System-App „tailscaled“ muss auf der Box installiert sein. Installieren Sie „tailscaled“ im ShareOS App Store.',
+      'banner.noAccess': 'Kein Zugriff – Tailscale betrifft das Netzwerk der ganzen Box und ist nur für Administratoren.',
+      'banner.noTun': 'Diese Firmware kann noch keine Tunnel (TUN) – ShareOS aktualisieren.',
       'banner.offline.retry': 'Erneut versuchen',
       'banner.offline.cfg': 'Endpunkt konfigurieren',
       'banner.offline.demo': 'Demo-Modus',

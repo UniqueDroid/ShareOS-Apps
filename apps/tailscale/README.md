@@ -21,4 +21,4 @@ The DNS-320L runs on a Marvell Kirkwood 1.0 GHz Single-Core ARMv5TE processor wi
 
 ## How it works
 
-The app connects to the Tailscale daemon (`tailscaled`) running on the box via local API or proxy, allowing full control directly from the ShareOS desktop.
+The web app integrates with ShareOS through `ShareOS.tailscale` (permissions `files` and `tailscale`, admin accounts only, ShareOS 0.2.0-beta.6+). It communicates securely with the box daemon controller (`shareos-tailscale` / rpcd `shareos.apptailscale`), driving the `tailscaled` native system app (`requires: ["tailscaled"]`) which runs with the kernel TUN device (`/dev/net/tun`) under strict memory limits (`GOMEMLIMIT=40MiB`, `GOGC=25`).

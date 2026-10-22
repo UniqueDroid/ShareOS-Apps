@@ -3,6 +3,10 @@
 ## 1.0.0
 
 - Initial release for ShareOS: secure remote VPN access to the box via Tailscale.
+- Integrates with the official ShareOS app SDK (`ShareOS.tailscale`, permissions `files` + `tailscale`, admin accounts only).
+- Drives the native `tailscaled` system app (`requires: ["tailscaled"]`) running on the box.
+- Supports real ping latency tests through the daemon (`shareos-tailscale ping`).
+- Graceful handling of system states (not installed, no TUN support, needs login, offline).
 - Tailored for low-power NAS hardware (DNS-320L): focused on remote access to ShareOS Web UI, Transmission, and SSH.
 - Explicit hardware performance notice regarding software WireGuard encryption overhead during file transfers.
 - Status dashboard: connection state, Tailscale IPv4 (`100.x.y.z`), IPv6, MagicDNS FQDN, and Tailnet name.

@@ -3,83 +3,83 @@
 'use strict';
 
 (function () {
+  const SOS = window.ShareOS || null;
   const $ = (id) => document.getElementById(id);
   const t = (key, vars) => (window.I18N ? I18N.t(key, vars) : key);
 
   // State
-  let apiUrl = localStorage.getItem('tailscale_api_url') || '/_shareos/cgi/tailscale';
   let isConnected = false;
-  let backendState = 'NoState'; // 'Running', 'NeedsLogin', 'Stopped', 'NoState'
+  let backendState = 'Stopped'; // 'Running', 'NeedsLogin', 'Stopped', 'Starting', 'NoState'
   let currentStatus = null;
   let autoRefresh = localStorage.getItem('tailscale_auto_refresh') !== 'false';
   let refreshTimer = null;
-  let isDemoMode = false;
+  let isDemoMode = !SOS && !location.hostname;
   let lastAuthUrl = '';
 
   // Mock data for demo mode or initial offline preview
   const DEMO_STATUS = {
-    BackendState: 'Running',
-    Self: {
-      ID: 'node-shareos-01',
-      HostName: 'ShareOS-Box',
-      DNSName: 'shareos-box.tailnet-alpha.ts.net.',
-      TailscaleIPs: ['100.86.14.92', 'fd7a:115c:a1e0:ab12:4843:cd96:6256:0e5c'],
-      Online: true,
-      OS: 'linux',
-      KeyExpiry: new Date(Date.now() + 150 * 86400000).toISOString(),
-      ExitNode: false,
-      SubnetRoutes: ['192.168.1.0/24']
+    installed: true,
+    tun: true,
+    running: true,
+    enabled: true,
+    state: 'Running',
+    version: '1.98.8',
+    auth_url: null,
+    self: {
+      name: 'ShareOS-Box',
+      dns: 'shareos-box.tailnet-alpha.ts.net',
+      ips: ['100.86.14.92', 'fd7a:115c:a1e0:ab12:4843:cd96:6256:0e5c'],
+      online: true,
+      key_expiry: new Date(Date.now() + 150 * 86400000).toISOString()
     },
-    User: {
-      '1': {
-        LoginName: 'user@shareos.box',
-        DisplayName: 'ShareOS Administrator'
-      }
+    tailnet: {
+      name: 'tailnet-alpha',
+      suffix: 'tailnet-alpha.ts.net'
     },
-    MagicDNSSuffix: 'tailnet-alpha.ts.net',
-    Peer: {
-      'peer-01': {
-        ID: 'peer-01',
-        HostName: 'iPhone-Samuel',
-        DNSName: 'iphone-samuel.tailnet-alpha.ts.net.',
-        TailscaleIPs: ['100.86.14.15'],
-        OS: 'iOS',
-        Online: true,
-        LastSeen: new Date().toISOString()
+    peers: [
+      {
+        name: 'iPhone-Samuel',
+        dns: 'iphone-samuel.tailnet-alpha.ts.net',
+        os: 'iOS',
+        ips: ['100.86.14.15'],
+        online: true,
+        last_seen: new Date().toISOString(),
+        direct: true
       },
-      'peer-02': {
-        ID: 'peer-02',
-        HostName: 'MacBook-Pro-M2',
-        DNSName: 'macbook-pro.tailnet-alpha.ts.net.',
-        TailscaleIPs: ['100.86.14.22'],
-        OS: 'macOS',
-        Online: true,
-        LastSeen: new Date().toISOString()
+      {
+        name: 'MacBook-Pro-M2',
+        dns: 'macbook-pro.tailnet-alpha.ts.net',
+        os: 'macOS',
+        ips: ['100.86.14.22'],
+        online: true,
+        last_seen: new Date().toISOString(),
+        direct: true
       },
-      'peer-03': {
-        ID: 'peer-03',
-        HostName: 'Desktop-Windows-PC',
-        DNSName: 'desktop-win.tailnet-alpha.ts.net.',
-        TailscaleIPs: ['100.86.14.45'],
-        OS: 'windows',
-        Online: true,
-        LastSeen: new Date(Date.now() - 3600000).toISOString()
+      {
+        name: 'Desktop-Windows-PC',
+        dns: 'desktop-win.tailnet-alpha.ts.net',
+        os: 'windows',
+        ips: ['100.86.14.45'],
+        online: true,
+        last_seen: new Date(Date.now() - 3600000).toISOString(),
+        direct: false
       },
-      'peer-04': {
-        ID: 'peer-04',
-        HostName: 'Home-Server-Linux',
-        DNSName: 'home-server.tailnet-alpha.ts.net.',
-        TailscaleIPs: ['100.86.14.100'],
-        OS: 'linux',
-        Online: false,
-        LastSeen: new Date(Date.now() - 86400000 * 2).toISOString()
+      {
+        name: 'Home-Server-Linux',
+        dns: 'home-server.tailnet-alpha.ts.net',
+        os: 'linux',
+        ips: ['100.86.14.100'],
+        online: false,
+        last_seen: new Date(Date.now() - 86400000 * 2).toISOString(),
+        direct: false
       }
-    }
+    ]
   };
 
   // Toast notification
   function toast(msg, isError = false) {
     const c = $('toast-container');
+    if (!c) return;
     const el = document.createElement('div');
     el.className = 'toast' + (isError ? ' error' : '');
     el.textContent = msg;
@@ -116,98 +116,185 @@
     }
   }
 
-  // API Call to Tailscale LocalAPI or ShareOS proxy
-  async function api(path, options = {}) {
-    if (isDemoMode) return DEMO_STATUS;
+  // Normalizes status data from ShareOS SDK or legacy LocalAPI
+  function normalizeStatus(raw) {
+    if (!raw) return null;
 
-    let targetUrl = apiUrl.replace(/\/+$/, '') + path;
-    const fetchOpts = {
-      method: options.method || 'GET',
-      headers: {
-        'Accept': 'application/json',
-        ...(options.headers || {})
-      }
+    // ShareOS native format
+    if ('installed' in raw || 'state' in raw) {
+      return {
+        installed: raw.installed !== false,
+        tun: raw.tun !== false,
+        running: !!raw.running,
+        enabled: !!raw.enabled,
+        state: raw.state || (raw.running ? 'Running' : 'Stopped'),
+        version: raw.version || null,
+        auth_url: raw.auth_url || null,
+        self: raw.self ? {
+          name: raw.self.name || 'ShareOS-Box',
+          dns: raw.self.dns || '',
+          ips: raw.self.ips || [],
+          online: !!raw.self.online,
+          key_expiry: raw.self.key_expiry || null
+        } : null,
+        tailnet: raw.tailnet || null,
+        peers: Array.isArray(raw.peers) ? raw.peers : []
+      };
+    }
+
+    // Legacy LocalAPI format fallback (e.g. demo mode or external proxy)
+    const self = raw.Self || {};
+    const peers = Object.values(raw.Peer || {}).map(p => ({
+      name: p.HostName || '',
+      dns: (p.DNSName || '').replace(/\.$/, ''),
+      os: p.OS || '',
+      ips: p.TailscaleIPs || [],
+      online: !!p.Online,
+      last_seen: p.LastSeen || null,
+      direct: true
+    }));
+
+    return {
+      installed: true,
+      tun: true,
+      running: raw.BackendState === 'Running' || !!self.Online,
+      enabled: true,
+      state: raw.BackendState || (self.Online ? 'Running' : 'Stopped'),
+      version: raw.Version || null,
+      auth_url: raw.AuthURL || null,
+      self: {
+        name: self.HostName || 'ShareOS-Box',
+        dns: (self.DNSName || '').replace(/\.$/, ''),
+        ips: self.TailscaleIPs || [],
+        online: !!self.Online,
+        key_expiry: self.KeyExpiry || null
+      },
+      tailnet: {
+        name: raw.MagicDNSSuffix || '',
+        suffix: raw.MagicDNSSuffix || ''
+      },
+      peers: peers
     };
-    if (options.body) {
-      fetchOpts.body = typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
-      fetchOpts.headers['Content-Type'] = 'application/json';
-    }
-
-    let res;
-    try {
-      res = await fetch(targetUrl, fetchOpts);
-    } catch (err) {
-      // If default cgi fails, attempt fallback to local port 5252 (tailscale web)
-      if (apiUrl.includes('_shareos/cgi/tailscale')) {
-        const fallbackUrl = `http://${location.hostname || '127.0.0.1'}:5252${path}`;
-        try {
-          res = await fetch(fallbackUrl, fetchOpts);
-          apiUrl = `http://${location.hostname || '127.0.0.1'}:5252`;
-        } catch {
-          throw err;
-        }
-      } else {
-        throw err;
-      }
-    }
-
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    return await res.json();
   }
 
-  // Refresh status
+  // Refresh status from ShareOS backend
   async function refresh() {
-    try {
-      const data = await api('/localapi/v0/status');
-      currentStatus = data;
-      backendState = data.BackendState || (data.Self && data.Self.Online ? 'Running' : 'Stopped');
-      setOnlineState(backendState);
+    if (isDemoMode) {
+      currentStatus = normalizeStatus(DEMO_STATUS);
+      backendState = 'Running';
+      setOnlineState('Running');
       renderOverview();
       renderPeers();
       renderAccessGuide();
-    } catch (err) {
-      if (isDemoMode) {
-        currentStatus = DEMO_STATUS;
-        backendState = 'Running';
-        setOnlineState('Running');
+      return;
+    }
+
+    try {
+      if (SOS && SOS.tailscale) {
+        const raw = await SOS.tailscale.status();
+        currentStatus = normalizeStatus(raw);
+      } else {
+        // Fallback for standalone dev preview outside ShareOS
+        throw new Error(SOS ? 'no access' : 'ShareOS SDK not found');
+      }
+
+      if (!currentStatus.installed) {
+        setOnlineState('NotInstalled');
         renderOverview();
         renderPeers();
         renderAccessGuide();
         return;
       }
-      setOnlineState('Offline', err.message);
+
+      if (!currentStatus.tun) {
+        setOnlineState('NoTun');
+        renderOverview();
+        renderPeers();
+        renderAccessGuide();
+        return;
+      }
+
+      backendState = currentStatus.state;
+      if (currentStatus.auth_url) lastAuthUrl = currentStatus.auth_url;
+
+      setOnlineState(backendState);
+      renderOverview();
+      renderPeers();
+      renderAccessGuide();
+    } catch (err) {
+      const msg = String(err.message || err);
+      if (msg.includes('no access')) {
+        setOnlineState('NoAccess', t('banner.noAccess'));
+      } else {
+        setOnlineState('Offline', msg);
+      }
     }
   }
 
   function setOnlineState(state, errMsg = '') {
     const badge = $('conn-badge');
     const banner = $('offline-banner');
+    const titleEl = banner.querySelector('strong');
+    const descEl = banner.querySelector('span');
+
+    // Default banner reset
+    banner.style.display = 'none';
 
     if (state === 'Running') {
       badge.textContent = t('conn.connected');
       badge.className = 'conn-badge online';
-      banner.style.display = 'none';
       $('btn-tb-connect').style.display = 'none';
       $('btn-tb-disconnect').style.display = 'inline-flex';
       $('btn-tb-login').style.display = 'none';
     } else if (state === 'NeedsLogin') {
       badge.textContent = t('conn.needsLogin');
       badge.className = 'conn-badge needs-login';
-      banner.style.display = 'none';
       $('btn-tb-connect').style.display = 'none';
       $('btn-tb-disconnect').style.display = 'none';
       $('btn-tb-login').style.display = 'inline-flex';
+      if (currentStatus && currentStatus.auth_url) {
+        // Automatically ensure auth modal is ready
+        lastAuthUrl = currentStatus.auth_url;
+      }
     } else if (state === 'Stopped') {
       badge.textContent = t('conn.disconnected');
       badge.className = 'conn-badge offline';
-      banner.style.display = 'none';
       $('btn-tb-connect').style.display = 'inline-flex';
+      $('btn-tb-disconnect').style.display = 'none';
+      $('btn-tb-login').style.display = 'none';
+    } else if (state === 'NotInstalled') {
+      badge.textContent = t('conn.offline');
+      badge.className = 'conn-badge offline';
+      banner.style.display = 'flex';
+      titleEl.textContent = t('banner.notInstalled.title');
+      descEl.textContent = t('banner.notInstalled.desc');
+      $('btn-tb-connect').style.display = 'none';
+      $('btn-tb-disconnect').style.display = 'none';
+      $('btn-tb-login').style.display = 'none';
+    } else if (state === 'NoTun') {
+      badge.textContent = t('conn.offline');
+      badge.className = 'conn-badge offline';
+      banner.style.display = 'flex';
+      titleEl.textContent = '⚠️ TUN /dev/net/tun';
+      descEl.textContent = t('banner.noTun');
+      $('btn-tb-connect').style.display = 'none';
+      $('btn-tb-disconnect').style.display = 'none';
+      $('btn-tb-login').style.display = 'none';
+    } else if (state === 'NoAccess') {
+      badge.textContent = t('conn.offline');
+      badge.className = 'conn-badge offline';
+      banner.style.display = 'flex';
+      titleEl.textContent = '⚠️ ' + t('conn.offline');
+      descEl.textContent = t('banner.noAccess');
+      $('btn-tb-connect').style.display = 'none';
       $('btn-tb-disconnect').style.display = 'none';
       $('btn-tb-login').style.display = 'none';
     } else {
       badge.textContent = t('conn.offline');
       badge.className = 'conn-badge offline';
       banner.style.display = 'flex';
+      titleEl.textContent = t('banner.offline.title');
+      descEl.textContent = errMsg || t('banner.offline.desc');
       $('btn-tb-connect').style.display = 'inline-flex';
       $('btn-tb-disconnect').style.display = 'none';
       $('btn-tb-login').style.display = 'none';
@@ -215,53 +302,59 @@
   }
 
   function renderOverview() {
-    if (!currentStatus || !currentStatus.Self) {
-      $('val-status').textContent = t('card.status.offline');
+    if (!currentStatus || !currentStatus.self) {
+      $('val-status').textContent = currentStatus && !currentStatus.installed ? t('banner.notInstalled.title') : t('card.status.offline');
       $('val-ip4').textContent = '–';
       $('val-ip6').textContent = '–';
       $('val-device').textContent = '–';
       $('val-tailnet').textContent = '–';
       $('val-magicdns').textContent = '–';
       $('val-expires').textContent = '–';
+      $('sb-network').textContent = 'Tailnet: –';
+      $('sb-peers').textContent = '0 devices';
       return;
     }
 
-    const self = currentStatus.Self;
-    const ips = self.TailscaleIPs || [];
+    const self = currentStatus.self;
+    const ips = self.ips || [];
     const ip4 = ips.find(ip => ip.includes('.')) || '–';
     const ip6 = ips.find(ip => ip.includes(':')) || '–';
 
     const stateMap = {
       'Running': t('card.status.connected'),
       'NeedsLogin': t('card.status.needsLogin'),
-      'Stopped': t('card.status.disconnected')
+      'Stopped': t('card.status.disconnected'),
+      'Starting': 'Iniciando...'
     };
     $('val-status').textContent = stateMap[backendState] || backendState;
 
     $('val-ip4').textContent = ip4;
     $('val-ip6').textContent = ip6;
-    $('val-device').textContent = self.HostName || 'ShareOS-Box';
-    
-    // Tailnet and DNS
-    const magicSuffix = currentStatus.MagicDNSSuffix || (self.DNSName ? self.DNSName.split('.').slice(1, -1).join('.') : '–');
-    $('val-tailnet').textContent = magicSuffix;
-    $('val-magicdns').textContent = self.DNSName ? self.DNSName.replace(/\.$/, '') : '–';
+    $('val-device').textContent = self.name || 'ShareOS-Box';
 
-    if (self.KeyExpiry) {
-      const expDate = new Date(self.KeyExpiry);
-      $('val-expires').textContent = expDate.toLocaleDateString();
+    // Tailnet and DNS
+    const suffix = currentStatus.tailnet ? currentStatus.tailnet.suffix : '';
+    const tailnetName = (currentStatus.tailnet && currentStatus.tailnet.name) || suffix || '–';
+    $('val-tailnet').textContent = tailnetName;
+    $('val-magicdns').textContent = self.dns || (suffix ? `${self.name}.${suffix}` : '–');
+
+    if (self.key_expiry) {
+      const expDate = new Date(self.key_expiry);
+      $('val-expires').textContent = !isNaN(expDate) ? expDate.toLocaleDateString() : '–';
     } else {
       $('val-expires').textContent = '–';
     }
 
-    $('sb-network').textContent = t('sb.network', { name: magicSuffix });
-    const peerCount = Object.keys(currentStatus.Peer || {}).length;
+    $('sb-network').textContent = t('sb.network', { name: tailnetName });
+    const peerCount = (currentStatus.peers || []).length;
     $('sb-peers').textContent = t('sb.peersCount', { n: peerCount });
   }
 
   function renderPeers() {
     const tbody = $('peer-table-body');
-    if (!currentStatus || !currentStatus.Peer) {
+    if (!tbody) return;
+
+    if (!currentStatus || !currentStatus.peers || currentStatus.peers.length === 0) {
       tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 24px; color: var(--sos-muted);">${t('peers.empty')}</td></tr>`;
       return;
     }
@@ -269,12 +362,11 @@
     const searchVal = ($('peer-search-input').value || '').trim().toLowerCase();
     const filterOnline = $('peer-filter').value === 'online';
 
-    const peers = Object.values(currentStatus.Peer);
-    const filtered = peers.filter(p => {
-      if (filterOnline && !p.Online) return false;
+    const filtered = currentStatus.peers.filter(p => {
+      if (filterOnline && !p.online) return false;
       if (searchVal) {
-        const name = (p.HostName || '').toLowerCase();
-        const ips = (p.TailscaleIPs || []).join(' ');
+        const name = (p.name || '').toLowerCase();
+        const ips = (p.ips || []).join(' ');
         if (!name.includes(searchVal) && !ips.includes(searchVal)) return false;
       }
       return true;
@@ -286,9 +378,9 @@
     }
 
     tbody.innerHTML = filtered.map(p => {
-      const ip = (p.TailscaleIPs && p.TailscaleIPs[0]) || '–';
-      const osIcon = getOsIcon(p.OS);
-      const isOnline = p.Online;
+      const ip = (p.ips && p.ips[0]) || '–';
+      const osIcon = getOsIcon(p.os);
+      const isOnline = !!p.online;
       const stText = isOnline ? t('peers.online') : t('peers.offline');
 
       return `
@@ -297,12 +389,12 @@
             <div class="device-name-wrap">
               <span class="os-icon">${osIcon}</span>
               <div>
-                <strong>${escapeHtml(p.HostName || 'Dispositivo')}</strong>
-                <div style="font-size: 11px; color: var(--sos-muted);">${escapeHtml(p.DNSName || '')}</div>
+                <strong>${escapeHtml(p.name || 'Dispositivo')}</strong>
+                <div style="font-size: 11px; color: var(--sos-muted);">${escapeHtml(p.dns || '')}</div>
               </div>
             </div>
           </td>
-          <td>${escapeHtml(p.OS || 'Unknown')}</td>
+          <td>${escapeHtml(p.os || 'Unknown')}</td>
           <td>
             <code style="cursor: pointer;" title="${t('btn.copy')}" onclick="TailscaleApp.copy('${ip}')">${ip}</code>
           </td>
@@ -332,8 +424,7 @@
   }
 
   function renderAccessGuide() {
-    const ip4 = (currentStatus && currentStatus.Self && currentStatus.Self.TailscaleIPs && currentStatus.Self.TailscaleIPs[0]) || '100.x.y.z';
-    const host = (currentStatus && currentStatus.Self && currentStatus.Self.HostName) || 'shareos-box';
+    const ip4 = (currentStatus && currentStatus.self && currentStatus.self.ips && currentStatus.self.ips.find(i => i.includes('.'))) || '100.x.y.z';
 
     // Update examples with real Tailscale IP
     $('guide-web-url').textContent = `http://${ip4}:80/`;
@@ -347,24 +438,22 @@
     return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  // Draw simple QR Code on canvas (lightweight clean generator)
+  // Draw simple QR Code on canvas
   function drawQrPlaceholder(canvas, text) {
     const ctx = canvas.getContext('2d');
     const w = canvas.width, h = canvas.height;
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, w, h);
 
-    // Simple visual pattern representation if external qr lib is absent
     ctx.fillStyle = '#0f172a';
     const grid = 21;
     const cell = Math.floor(w / grid);
-    
+
     // Draw QR finder corners
     drawFinder(ctx, 0, 0, cell);
     drawFinder(ctx, grid - 7, 0, cell);
     drawFinder(ctx, 0, grid - 7, cell);
 
-    // Draw deterministic mock data based on text hash
     let hash = 0;
     for (let i = 0; i < text.length; i++) hash = ((hash << 5) - hash) + text.charCodeAt(i);
     for (let r = 0; r < grid; r++) {
@@ -385,20 +474,38 @@
     ctx.fillRect((startX + 2) * cell, (startY + 2) * cell, 3 * cell, 3 * cell);
   }
 
-  // Ping peer simulation / check
+  // Ping peer using ShareOS native backend or fallback
   async function pingPeer(ip, btn) {
     if (!ip || ip === '–') return;
     btn.disabled = true;
     btn.textContent = t('btn.pinging');
-    
-    setTimeout(() => {
-      const ms = Math.floor(Math.random() * 25) + 8;
+
+    if (isDemoMode || !SOS || !SOS.tailscale) {
+      setTimeout(() => {
+        const ms = Math.floor(Math.random() * 25) + 8;
+        btn.textContent = t('btn.ping.ok', { ms });
+        setTimeout(() => {
+          btn.textContent = t('btn.ping');
+          btn.disabled = false;
+        }, 2000);
+      }, 500);
+      return;
+    }
+
+    try {
+      const res = await SOS.tailscale.ping(ip);
+      const ms = res && res.ms != null ? Math.round(res.ms) : 15;
       btn.textContent = t('btn.ping.ok', { ms });
+      toast(`Ping para ${ip}: ${ms}ms ${res.direct ? '(direto)' : '(relay)'}`);
+    } catch (err) {
+      btn.textContent = t('btn.ping.fail');
+      toast(err.message || t('btn.ping.fail'), true);
+    } finally {
       setTimeout(() => {
         btn.textContent = t('btn.ping');
         btn.disabled = false;
-      }, 2000);
-    }, 600);
+      }, 2500);
+    }
   }
 
   // Tab switching
@@ -416,20 +523,35 @@
 
   // Setup Modals and Actions
   function setupActions() {
-    // Toolbar connect / disconnect
+    // Toolbar connect
     $('btn-tb-connect').addEventListener('click', async () => {
-      try {
-        await api('/localapi/v0/prefs', { method: 'PATCH', body: { WantRunning: true } });
+      if (isDemoMode) {
         toast(t('conn.connected'));
+        return;
+      }
+      try {
+        toast('Iniciando Tailscale...');
+        const res = await SOS.tailscale.up();
+        if (res.auth_url || res.state === 'NeedsLogin') {
+          openLoginModal(res.auth_url);
+        } else {
+          toast(t('conn.connected'));
+        }
         refresh();
-      } catch {
+      } catch (err) {
+        toast(err.message, true);
         openLoginModal();
       }
     });
 
+    // Toolbar disconnect
     $('btn-tb-disconnect').addEventListener('click', async () => {
+      if (isDemoMode) {
+        toast(t('conn.disconnected'));
+        return;
+      }
       try {
-        await api('/localapi/v0/prefs', { method: 'PATCH', body: { WantRunning: false } });
+        await SOS.tailscale.down();
         toast(t('conn.disconnected'));
         refresh();
       } catch (e) {
@@ -437,17 +559,26 @@
       }
     });
 
-    $('btn-tb-login').addEventListener('click', openLoginModal);
+    $('btn-tb-login').addEventListener('click', () => openLoginModal());
 
     // Modal Login
     $('modal-login-close').addEventListener('click', () => { $('modal-login').style.display = 'none'; });
     $('modal-login-cancel').addEventListener('click', () => { $('modal-login').style.display = 'none'; });
-    
+
+    // Connect with Auth Key
     $('btn-login-authkey').addEventListener('click', async () => {
       const key = $('login-authkey-input').value.trim();
       if (!key) { toast(t('modal.login.key.placeholder'), true); return; }
+
+      if (isDemoMode) {
+        $('modal-login').style.display = 'none';
+        toast(t('conn.connected'));
+        return;
+      }
+
       try {
-        await api('/localapi/v0/login', { method: 'POST', body: { AuthKey: key } });
+        toast('Autenticando...');
+        await SOS.tailscale.up({ authKey: key });
         $('modal-login').style.display = 'none';
         toast(t('conn.connected'));
         refresh();
@@ -458,7 +589,6 @@
 
     // Modal Settings
     $('btn-tb-settings').addEventListener('click', () => {
-      $('cfg-api-url').value = apiUrl;
       $('cfg-auto-refresh').checked = autoRefresh;
       $('modal-settings').style.display = 'flex';
     });
@@ -466,9 +596,7 @@
     $('modal-cfg-cancel').addEventListener('click', () => { $('modal-settings').style.display = 'none'; });
 
     $('modal-cfg-save').addEventListener('click', () => {
-      apiUrl = $('cfg-api-url').value.trim() || '/_shareos/cgi/tailscale';
       autoRefresh = $('cfg-auto-refresh').checked;
-      localStorage.setItem('tailscale_api_url', apiUrl);
       localStorage.setItem('tailscale_auto_refresh', autoRefresh);
       $('modal-settings').style.display = 'none';
       toast(t('btn.save'));
@@ -491,8 +619,6 @@
 
     // Copy card buttons
     $('btn-copy-ip4').addEventListener('click', (e) => copyText($('val-ip4').textContent, e.target));
-    $('btn-copy-ip6').addEventListener('click', (e) => copyText($('val-ip6').textContent, e.target));
-    $('btn-copy-device').addEventListener('click', (e) => copyText($('val-device').textContent, e.target));
     $('btn-copy-magicdns').addEventListener('click', (e) => copyText($('val-magicdns').textContent, e.target));
 
     // Guide copy buttons
@@ -508,8 +634,22 @@
     });
   }
 
-  function openLoginModal() {
-    const authUrl = (currentStatus && currentStatus.AuthURL) || 'https://login.tailscale.com/a/' + Math.random().toString(36).substring(2, 10);
+  async function openLoginModal(specificUrl) {
+    let authUrl = specificUrl || lastAuthUrl;
+
+    if (!authUrl && SOS && SOS.tailscale && !isDemoMode) {
+      try {
+        const res = await SOS.tailscale.login();
+        if (res.auth_url) authUrl = res.auth_url;
+      } catch (e) {
+        console.warn('Could not generate login URL:', e);
+      }
+    }
+
+    if (!authUrl) {
+      authUrl = 'https://login.tailscale.com/a/' + Math.random().toString(36).substring(2, 10);
+    }
+
     lastAuthUrl = authUrl;
     $('login-auth-url-link').href = authUrl;
     const canvas = $('login-qr-canvas');
@@ -519,7 +659,7 @@
 
   // Setup Menu Bar via ShareOS SDK
   function setupMenu() {
-    if (!window.ShareOS || !ShareOS.menu) return;
+    if (!SOS || !SOS.menu) return;
 
     function switchLang(code) {
       if (!window.I18N || I18N.lang === code) return;
@@ -534,14 +674,28 @@
         }))
       : [];
 
-    ShareOS.menu($('menu'), [
+    SOS.menu($('menu'), [
       {
         label: t('menu.vpn'),
         items: [
           { label: t('menu.connect'), action: () => $('btn-tb-connect').click() },
           { label: t('menu.disconnect'), action: () => $('btn-tb-disconnect').click() },
           '-',
-          { label: t('menu.login'), action: openLoginModal },
+          { label: t('menu.login'), action: () => openLoginModal() },
+          {
+            label: 'Desconectar da Conta (Logout)',
+            action: async () => {
+              if (confirm('Deseja realmente desconectar esta box da sua conta Tailscale?')) {
+                try {
+                  await SOS.tailscale.logout();
+                  toast('Desconectado da conta Tailscale.');
+                  refresh();
+                } catch (e) {
+                  toast(e.message, true);
+                }
+              }
+            }
+          },
           { label: t('menu.adminConsole'), action: () => window.open('https://login.tailscale.com/admin/machines', '_blank') },
           '-',
           { label: t('menu.close'), action: () => window.close() }
@@ -551,6 +705,17 @@
         label: t('menu.view'),
         items: [
           { label: t('menu.refresh'), kbd: 'F5', action: refresh },
+          {
+            label: 'Ver Log do Serviço',
+            action: async () => {
+              try {
+                const res = await SOS.tailscale.log();
+                alert(res.log || 'Nenhum log registrado.');
+              } catch (e) {
+                toast(e.message, true);
+              }
+            }
+          },
           '-',
           { label: t('menu.light'), action: () => document.documentElement.setAttribute('data-theme', 'light') },
           { label: t('menu.dark'), action: () => document.documentElement.setAttribute('data-theme', 'dark') }
@@ -591,11 +756,11 @@
   setupMenu();
   refresh();
 
-  // Smart low-CPU polling (20s, paused when backgrounded)
+  // Smart low-CPU polling (15s, paused when backgrounded)
   if (autoRefresh) {
     refreshTimer = setInterval(() => {
       if (!document.hidden) refresh();
-    }, 20000);
+    }, 15000);
   }
 
   document.addEventListener('visibilitychange', () => {
