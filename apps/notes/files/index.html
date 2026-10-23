@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShareNotes – ShareOS</title>
+  <link rel="icon" href="icon.svg">
+  <!-- ShareOS look and SDK; outside ShareOS these are simply missing -->
+  <link rel="stylesheet" href="/_shareos/theme.css">
+  <link rel="stylesheet" href="style.css">
+  <script src="/_shareos/app.js"></script>
+</head>
+<body class="sos-app">
+  <header class="sos-titlebar notes-titlebar">
+    <img src="icon.svg" alt="">
+    <span>ShareNotes</span>
+    <span class="tag" id="app-version">1.1.0</span>
+    <div class="search-wrap">
+      <input type="search" id="search-input" class="sos-input" placeholder="Notizen durchsuchen …" autocomplete="off">
+    </div>
+    <span class="account-pill" id="user-display"></span>
+  </header>
+
+  <div id="banner" class="banner hidden"></div>
+
+  <main class="sos-main notes-stage">
+    <!-- new note: collapsed to one line until it gets the focus -->
+    <div class="creator-wrapper">
+      <div class="note-creator" id="note-creator" data-color="default">
+        <input type="text" id="new-title" class="hidden" placeholder="Titel" autocomplete="off">
+        <textarea id="new-content" placeholder="Notiz schreiben …" rows="1"></textarea>
+        <div class="creator-bottom hidden" id="creator-footer">
+          <div class="palette" id="creator-palette"></div>
+          <button class="note-btn" id="add-note-btn" title="Notiz anlegen (Strg+Enter)">Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes-grid" id="notes-grid"></div>
+    <div class="empty hidden" id="notes-empty"></div>
+  </main>
+
+  <!-- edit dialog -->
+  <div class="modal-backdrop hidden" id="edit-modal">
+    <div class="modal-dialog" id="modal-dialog" role="dialog" aria-modal="true" aria-label="Notiz bearbeiten">
+      <input type="text" id="edit-title" class="modal-title-input" placeholder="Titel" autocomplete="off">
+      <textarea id="edit-content" class="modal-content-input" placeholder="Notiz …"></textarea>
+      <div class="modal-bottom">
+        <div class="palette" id="edit-palette"></div>
+        <div class="modal-actions">
+          <button class="note-btn danger-text" id="modal-delete-btn">Löschen</button>
+          <button class="note-btn" id="modal-save-btn" title="Speichern und schließen (Esc)">Schließen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="sos-statusbar">
+    <span id="notes-count">0 Notizen</span>
+    <span id="storage-status">Verbinde mit der Box …</span>
+  </footer>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

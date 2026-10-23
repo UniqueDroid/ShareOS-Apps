@@ -1,0 +1,19 @@
+{
+	"id": "notes",
+	"name": "ShareNotes",
+	"version": "1.1.0",
+	"publisher": "UniqueDroid",
+	"description": {
+		"de": "Notizzettel in Farbe: schnell aufschreiben, durchsuchen, bearbeiten und umfärben. Jede Notiz liegt als Datei in deinem persönlichen Ordner auf der Box (Ordner „notes“), ohne Dateizugriff im Browser.",
+		"en": "Coloured sticky notes: jot down, search, edit and recolour. Every note is a file in your personal folder on the box (folder “notes”); without file access they stay in the browser."
+	},
+	"type": "webapp",
+	"entry": "index.html",
+	"icon": "icon.svg",
+	"category": "office",
+	"license": "MIT",
+	"homepage": "https://github.com/UniqueDroid/ShareOS-Apps/tree/main/apps/notes",
+	"min_shareos": "0.2.0-beta.1",
+	"permissions": [ "files" ],
+	"window": { "width": 1040, "height": 720 }
+}
