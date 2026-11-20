@@ -119,9 +119,9 @@
       'access.step5.win': 'No Windows Explorer:',
       'access.step5.mac': 'No Mac Finder (Cmd+K):',
 
-      // Alerta de desempenho DNS-320L
-      'access.warn.title': '⚠️ Atenção: Limitação de Hardware do DNS-320L',
-      'access.warn.desc': 'O processador do DNS-320L (ARM 1.0 GHz Single-Core) não possui aceleração de criptografia por hardware. Copiar arquivos grandes pela VPN consumirá 100% da CPU, a velocidade será baixa (~1 a 3 MB/s) e transferências pesadas podem causar lentidão severa ou travamento temporário da box. Para arquivos grandes, prefira a rede local (LAN) ou envie o download diretamente para o Transmission.',
+      // Alerta de desempenho (todas as boxes)
+      'access.warn.title': '⚠️ Atenção: limites de hardware desta box',
+      'access.warn.desc': 'O processador desta box (ARM single-core de 0,8 a 1,2 GHz, conforme o modelo) não possui aceleração de criptografia por hardware. Copiar arquivos grandes pela VPN consumirá 100% da CPU, a velocidade será baixa (~1 a 3 MB/s) e transferências pesadas podem causar lentidão severa ou travamento temporário da box. Para arquivos grandes, prefira a rede local (LAN) ou envie o download diretamente para o Transmission.',
 
       // Modal Login
       'modal.login.title': 'Conectar esta Box ao Tailscale',
@@ -274,8 +274,8 @@
       'access.step5.mac': 'In Mac Finder (Cmd+K):',
 
       // Hardware warning
-      'access.warn.title': '⚠️ Performance Notice: DNS-320L Hardware Limits',
-      'access.warn.desc': 'The DNS-320L CPU (ARM 1.0 GHz Single-Core) processes VPN encryption entirely in software without hardware crypto acceleration. Copying large files over the VPN will saturate the CPU at 100%, transfer speeds will be low (~1 to 3 MB/s), and heavy transfers can cause severe slowdowns or temporary box freezing. For large files, use local network (LAN) or download directly with Transmission.',
+      'access.warn.title': '⚠️ Performance Notice: Hardware Limits of This Box',
+      'access.warn.desc': 'The CPU of this box (single-core ARM, 0.8 to 1.2 GHz depending on the model) processes VPN encryption entirely in software without hardware crypto acceleration. Copying large files over the VPN will saturate the CPU at 100%, transfer speeds will be low (~1 to 3 MB/s), and heavy transfers can cause severe slowdowns or temporary box freezing. For large files, use local network (LAN) or download directly with Transmission.',
 
       // Modal Login
       'modal.login.title': 'Connect this Box to Tailscale',
@@ -428,8 +428,8 @@
       'access.step5.mac': 'Im Mac Finder (Cmd+K):',
 
       // Hardwarewarnung
-      'access.warn.title': '⚠️ Leistungshinweis: Hardwaregrenzen des DNS-320L',
-      'access.warn.desc': 'Der Prozessor des DNS-320L (ARM 1.0 GHz Single-Core) berechnet VPN-Verschlüsselung vollständig per Software ohne Hardware-Kryptobeschleunigung. Das Kopieren großer Dateien über das VPN lastet die CPU zu 100% aus, ist langsam (~1 bis 3 MB/s) und kann die Box vorübergehend einfrieren. Für große Dateien bitte das lokale Netzwerk (LAN) oder Transmission nutzen.',
+      'access.warn.title': '⚠️ Leistungshinweis: Hardwaregrenzen dieser Box',
+      'access.warn.desc': 'Der Prozessor dieser Box (ARM Single-Core, je nach Modell 0,8 bis 1,2 GHz) berechnet VPN-Verschlüsselung vollständig per Software ohne Hardware-Kryptobeschleunigung. Das Kopieren großer Dateien über das VPN lastet die CPU zu 100% aus, ist langsam (~1 bis 3 MB/s) und kann die Box vorübergehend einfrieren. Für große Dateien bitte das lokale Netzwerk (LAN) oder Transmission nutzen.',
 
       // Modal Login
       'modal.login.title': 'Diese Box mit Tailscale verbinden',
