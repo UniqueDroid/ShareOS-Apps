@@ -1,7 +1,7 @@
 {
 	"id": "tailscale",
 	"name": "Tailscale",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"publisher": "SamuelSilvaG",
 	"description": {
 		"de": "Sicherer VPN-Fernzugriff auf Ihre ShareOS-Box über Tailscale (WireGuard-Mesh-Netzwerk). Zugriff auf Dateien, Dienste und Weboberfläche von überall ohne Portfreigabe.",

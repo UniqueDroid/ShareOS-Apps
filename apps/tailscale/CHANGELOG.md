@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- The performance notice on *Remote service access* named the DNS-320L on every box; it speaks of "this box" now, with the CPU range of all supported models ([ShareOS #190](https://github.com/UniqueDroid/ShareOS/issues/190), found by Rambooka on a DNS-320).
+
 ## 1.1.0
 
 - Talks to the box for real through `ShareOS.tailscale` (needs ShareOS 0.2.0-beta.8+ and the system app `tailscaled`, which the store installs first) – the LocalAPI guesswork, the API endpoint setting and the demo mode are gone.
