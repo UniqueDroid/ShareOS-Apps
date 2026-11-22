@@ -1,3 +1,7 @@
+## 1.1.2
+
+- Column view: **⌘⌫ / Ctrl+⌫ (or Del) deletes the folder you just clicked.** A click on a folder opens it as the next column and selects nothing in it, so the key did nothing. It now goes to the folder it is in, selects it and asks before deleting, as the Finder does.
+
 ## 1.1.1
 
 - Column view: a right click on a folder in a column to the left – usually the folder that is open on the right – showed only the menu for the open folder's contents, without *Delete*, *Rename* or *Copy*. It now selects that folder, as the Finder does, and the menu acts on it. Before, it took a click on the folder above and then on the folder again.

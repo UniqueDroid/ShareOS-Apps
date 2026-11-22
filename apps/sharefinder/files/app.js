@@ -449,7 +449,19 @@
 		if (mod && ev.altKey && k === 'v') { ev.preventDefault(); if (!fm.readOnly) pasteMove(); return; }
 		if (mod && k === 'v') { ev.preventDefault(); if (!fm.readOnly && fm.clip) paste(); return; }
 		if (mod && k === 'i') { ev.preventDefault(); getInfo(); return; }
-		if ((mod && ev.key === 'Backspace') || ev.key === 'Delete') { ev.preventDefault(); del(); return; }
+		if ((mod && ev.key === 'Backspace') || ev.key === 'Delete') {
+			ev.preventDefault();
+			// column view: after a click on a folder it is open on the right and
+			// nothing is selected – the key then deletes that folder, as in the
+			// Finder (go to the folder it is in and select it first)
+			if (view === 'cols' && !fm.selected().length && fm.path && !fm.readOnly) {
+				const name = FC.baseOf(fm.path);
+				guard(async () => { await fm.goUp(); fm.selectOnly(name); await del(); })();
+				return;
+			}
+			del();
+			return;
+		}
 		if (ev.key === 'Enter') { ev.preventDefault(); startRename(); return; }
 		if (ev.key === ' ') { ev.preventDefault(); const S = fm.selected(); if (S.length === 1 && FC.canPreview(S[0])) quickLook(S[0].name); return; }
 		if (ev.key === 'Escape') { fm.clearSel(); return; }
