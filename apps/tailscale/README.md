@@ -11,9 +11,9 @@ Secure WireGuard-based mesh VPN access for your ShareOS box. Connect to your NAS
 - **Low-Overhead Polling:** Efficient background updates that pause when minimized to save CPU cycles on low-power NAS devices.
 - **Full Localization:** Portuguese, English, and German interface with automatic language detection.
 
-## ⚠️ Hardware Performance Notice (D-Link DNS-320L)
+## ⚠️ Hardware Performance Notice (D-Link DNS-320, DNS-320L, DNS-325)
 
-The DNS-320L runs on a Marvell Kirkwood 1.0 GHz Single-Core ARMv5TE processor without hardware crypto acceleration and with 256 MB of RAM:
+The supported boxes run on a Marvell Kirkwood single-core ARMv5TE processor (0.8 to 1.2 GHz depending on the model) without hardware crypto acceleration for WireGuard, with 128 to 512 MB of RAM:
 
 - **Intended Use:** Managing Transmission downloads remotely, accessing the ShareOS web desktop, and remote administration.
 - **File Transfers (SMB / SFTP):** Transferring large files over the VPN will saturate the CPU at 100% due to software ChaCha20-Poly1305 encryption. Throughput is limited to ~1–3 MB/s (10–25 Mbps). Heavy file transfers can cause high load, unresponsiveness, or temporary freezing. For large files, use local LAN transfers or send download links directly to Transmission.
