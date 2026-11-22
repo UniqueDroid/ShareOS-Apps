@@ -6,9 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>autobrr-ui</title>
   <link rel="stylesheet" href="/_shareos/theme.css">
-  <link rel="stylesheet" href="app.css?v=1.1.0">
+  <link rel="stylesheet" href="app.css">
   <script src="/_shareos/app.js"></script>
-  <script src="i18n.js?v=1.1.0"></script>
+  <script src="i18n.js"></script>
 </head>
 
 <body class="sos-app">
@@ -18,7 +18,7 @@
     <div class="titlebar-left">
       <img src="icon.svg" class="app-icon" alt="autobrr-ui Logo">
       <span class="app-title" data-i18n="app.title">autobrr-ui</span>
-      <span class="version-tag">1.1.0</span>
+      <span class="version-tag">1.1.5</span>
     </div>
     <div class="titlebar-right">
       <span id="conn-badge" class="conn-badge checking" data-i18n="conn.checking">Checking service...</span>
@@ -104,7 +104,6 @@
               <th data-i18n="col.release">Release Name</th>
               <th style="width: 130px;" data-i18n="col.status">Filter Status</th>
               <th style="width: 150px;" data-i18n="col.action">Client Action</th>
-              <th style="width: 110px;" data-i18n="col.actions">Actions</th>
             </tr>
           </thead>
           <tbody id="releases-rows">
@@ -177,61 +176,75 @@
       </div>
     </section>
 
-    <!-- Tab 4: Transmission Handover -->
+    <!-- Tab 4: Transmission Integration -->
     <section id="tab-transmission" class="tab-panel">
       <div style="max-width: 800px;">
-        <h3 style="margin-top: 0; font-size: 16px;" data-i18n="trans.title">Transmission Handover Integration</h3>
+        <h3 style="margin-top: 0; font-size: 16px;" data-i18n="trans.title">Transmission Integration</h3>
 
-        <div class="settings-section">
-          <h4 data-i18n="trans.how_it_works">How It Works</h4>
-          <p class="section-desc" data-i18n="trans.how_desc">
-            autobrr runs as a single service for the whole box. When a matching torrent is captured, it is placed into a
-            secure hand-over folder with permissions 2770. The Transmission daemon of the designated user monitors this
-            folder and automatically starts downloading.
-          </p>
+        <div id="trans-legacy-drop-box" class="info-box warn" style="display:none; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <span id="trans-legacy-drop-text"></span>
+          <button type="button" id="btn-disable-legacy-drop" class="sos-btn sos-btn-sm" data-i18n="btn.disable_legacy_drop">Disable Drop Folder</button>
         </div>
 
-        <div class="cards-grid">
-          <!-- Drop Folder Card -->
-          <div class="card">
-            <div class="card-header">
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span style="font-size: 20px;">📂</span>
-                <div class="card-title" data-i18n="trans.drop_title">Handover Drop Folder</div>
+        <!-- Native ShareOS Transmission RPC Client -->
+        <div class="settings-section">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; gap: 8px;">
+            <h4 style="margin: 0;" data-i18n="trans.rpc_client_title">Native Transmission RPC Client</h4>
+            <span class="badge warn" id="trans-rpc-client-badge" data-i18n="trans.rpc_not_configured">Not configured</span>
+          </div>
+          <p class="section-desc" data-i18n="trans.rpc_client_desc">
+            Connect autobrr directly to ShareOS's local Transmission RPC proxy (127.0.0.1) using your account's remote password – the same filtered security proxy used by the Transmission app (enables labels, speed/ratio limits, and automatic reannounce).
+          </p>
+          <div id="trans-rpc-info" class="info-box" style="display:none;"></div>
+          <div id="trans-rpc-disabled-hint" class="info-box warn" style="display:none;" data-i18n="trans.rpc_disabled_hint">
+            Enable "Remote access for torrent programs" under ShareOS Services → Torrents (ShareOS 0.3.0-beta.6+) to connect autobrr natively to Transmission.
+          </div>
+          <div id="trans-rpc-setup-box" style="display:none;">
+            <div id="trans-rpc-connect-form">
+              <div class="form-row" style="align-items: flex-end; max-width: 560px; margin-bottom: 10px;">
+                <div class="form-group" style="margin: 0;">
+                  <label for="trans-rpc-password" data-i18n="trans.rpc_pw_label">Account Remote Password</label>
+                  <input type="password" id="trans-rpc-password" class="sos-input" data-i18n-placeholder="trans.rpc_pw_placeholder" placeholder="Paste remote password from Transmission Settings">
+                </div>
+                <button type="button" id="btn-connect-trans-rpc" class="sos-btn sos-btn-sm sos-btn-accent" data-i18n="btn.trans_rpc_connect">Connect &amp; Save</button>
               </div>
-              <span class="badge ok" id="drop-status-badge">Configured</span>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button type="button" id="btn-gen-connect-trans-rpc" class="sos-btn sos-btn-sm" data-i18n="btn.trans_rpc_generate">Generate Remote Password &amp; Connect</button>
+              </div>
             </div>
-            <div class="card-desc" style="font-size: 12px;">
-              <div style="margin-bottom: 6px;"><strong data-i18n="trans.drop_path">Folder Path</strong>: <code
-                  id="trans-drop-path">/mnt/.../.shareos/autobrr-drop</code></div>
-              <div style="margin-bottom: 6px;"><strong data-i18n="trans.drop_account">Watching User Account</strong>: <span id="trans-drop-account"
-                  style="font-weight: 600;">root</span></div>
-              <div><strong data-i18n="trans.drop_mode">Permissions Mode</strong>: <code>drwxrws--- (2770)</code></div>
+            <div id="trans-rpc-existing-actions" style="display:flex; gap: 8px; flex-wrap: wrap;" hidden>
+              <button type="button" id="btn-test-autobrr-trans" class="sos-btn sos-btn-sm" data-i18n="btn.trans_rpc_test">Verify ShareOS RPC Setup</button>
+              <button type="button" id="btn-remove-autobrr-trans" class="sos-btn sos-btn-sm sos-btn-danger" data-i18n="btn.trans_rpc_disconnect">Disconnect</button>
             </div>
-            <div class="card-meta">
-              <span data-i18n="trans.drop_hint">Torrents placed here are picked up within seconds by
-                Transmission.</span>
+            <div id="trans-rpc-generated-box" class="info-box pw-copy-box" hidden>
+              <div style="font-weight:600;" data-i18n="trans.rpc_gen_pw_label">Generated Remote Password (copy now to connect remote apps)</div>
+              <div class="pw-copy-row">
+                <input type="password" id="trans-rpc-generated-pw" class="sos-input" readonly>
+                <button type="button" id="btn-toggle-trans-rpc-gen-pw" class="sos-btn sos-btn-sm" data-i18n="btn.show_pw">Show</button>
+                <button type="button" id="btn-copy-trans-rpc-gen-pw" class="sos-btn sos-btn-sm sos-btn-accent" data-i18n="btn.copy_pw">Copy Password</button>
+                <button type="button" id="btn-dismiss-trans-rpc-gen-pw" class="sos-btn sos-btn-sm" aria-label="Close">✕</button>
+              </div>
             </div>
           </div>
+        </div>
 
-          <!-- Transmission Client Card -->
-          <div class="card">
-            <div class="card-header">
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span style="font-size: 20px;">⚡</span>
-                <div class="card-title" data-i18n="trans.daemon_card">Transmission Daemon</div>
-              </div>
-              <span class="badge ok" id="trans-daemon-badge">Checking...</span>
-            </div>
-            <div class="card-desc" style="font-size: 12px;" data-i18n="trans.daemon_desc">
-              Native ShareOS BitTorrent daemon running per-user with isolated file permissions.
-            </div>
-            <div style="margin-top: 14px; display: flex; gap: 8px;">
-              <button id="btn-test-transmission" class="sos-btn sos-btn-sm" data-i18n="btn.test_rpc">Test Transmission
-                RPC</button>
-              <button type="button" id="btn-open-trans-app" class="sos-btn sos-btn-sm sos-btn-accent"
-                data-i18n="btn.open_trans_app">Open Transmission</button>
-            </div>
+        <!-- Transmission Daemon -->
+        <div class="settings-section">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; gap: 8px;">
+            <h4 style="margin: 0;">
+              <span>⚡</span>
+              <span data-i18n="trans.daemon_card">Transmission Daemon</span>
+            </h4>
+            <span class="badge ok" id="trans-daemon-badge">Checking...</span>
+          </div>
+          <p class="section-desc" data-i18n="trans.daemon_desc">
+            Native ShareOS BitTorrent daemon running per-user with isolated file permissions.
+          </p>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button id="btn-test-transmission" class="sos-btn sos-btn-sm" data-i18n="btn.test_rpc">Test Transmission
+              RPC</button>
+            <button type="button" id="btn-open-trans-app" class="sos-btn sos-btn-sm sos-btn-accent"
+              data-i18n="btn.open_trans_app">Open Transmission</button>
           </div>
         </div>
       </div>
@@ -257,7 +270,7 @@
             <div style="display: flex; gap: 8px;">
               <button id="btn-start-svc" class="sos-btn sos-btn-sm sos-btn-accent" data-i18n="btn.start_service">Start
                 autobrr</button>
-              <button id="btn-stop-svc" class="sos-btn sos-btn-sm sos-btn-danger" data-i18n="btn.stop_service">Stop
+              <button id="btn-stop-svc" class="sos-btn sos-btn-sm sos-btn-danger" data-i18n="btn.stop_service" hidden>Stop
                 Service</button>
             </div>
           </div>
@@ -272,25 +285,7 @@
           </label>
         </div>
 
-        <!-- Section 2: Handover Account -->
-        <div class="settings-section">
-          <h4 data-i18n="settings.handover_section">Transmission Handover Account</h4>
-          <p class="section-desc" data-i18n="settings.handover_desc">
-            Select which ShareOS user account receives torrents from autobrr in their personal Transmission watch
-            directory.
-          </p>
-
-          <div class="form-row" style="align-items: center; max-width: 480px;">
-            <div class="form-group" style="margin: 0;">
-              <select id="sel-handover-account" class="sos-input">
-                <option value="root">root (Administrator)</option>
-              </select>
-            </div>
-            <button id="btn-save-account" class="sos-btn sos-btn-sm" data-i18n="btn.save_account">Save Account</button>
-          </div>
-        </div>
-
-        <!-- Section 3: Native Web Interface -->
+        <!-- Section 2: Native Web Interface -->
         <div class="settings-section">
           <h4 data-i18n="settings.webui_section">Native autobrr Web Interface (Port 7474)</h4>
           <p class="section-desc" data-i18n="settings.webui_desc">
@@ -312,7 +307,7 @@
               <span>🌐</span> <span data-i18n="settings.webui_open">Open autobrr Web Interface</span>
             </a>
             <code id="webui-url-text"
-              style="font-size: 12px; color: var(--sos-muted, #8b949e); padding: 4px 8px; background: var(--sos-bg); border: 1px solid var(--sos-line); border-radius: 4px;">http://...:7474</code>
+              style="font-size: 12px; color: var(--sos-text); padding: 4px 8px; background: var(--sos-bg); border: 1px solid var(--sos-line); border-radius: 4px;">http://...:7474</code>
           </div>
           <div style="font-size: 11px; color: var(--sos-muted, #8b949e); margin-top: 8px; line-height: 1.45;"
             data-i18n="settings.webui_hint">
@@ -368,9 +363,9 @@
           <input type="text" id="filter-name" class="sos-input" placeholder="e.g. Movies-1080p-Freeleech">
         </div>
         <div class="form-group">
-          <label for="filter-indexers" data-i18n="filters.indexers">Indexers / Trackers (comma-separated or empty for
-            all)</label>
-          <input type="text" id="filter-indexers" class="sos-input" placeholder="e.g. TorrentLeech, Redacted">
+          <label data-i18n="filters.indexers">Linked Indexers / Trackers</label>
+          <div id="filter-indexers-list" class="checkbox-grid"></div>
+          <div class="form-hint" data-i18n="filters.indexers_hint">Select at least one configured indexer – autobrr only matches releases from linked indexers.</div>
         </div>
         <div class="form-group">
           <label for="filter-match" data-i18n="filters.match_releases">Match Releases (wildcards e.g. *1080p*,
@@ -405,7 +400,20 @@
             <input type="text" id="filter-codecs" class="sos-input" placeholder="x264, x265">
           </div>
         </div>
+        <div class="form-group">
+          <label for="filter-action-mode" data-i18n="filters.delivery_action">Delivery to Transmission</label>
+          <select id="filter-action-mode" class="sos-input"></select>
+        </div>
+        <div class="form-group">
+          <label for="filter-save-path" data-i18n="filters.save_path">Download folder (optional)</label>
+          <input type="text" id="filter-save-path" class="sos-input" placeholder="/Downloads/movies">
+          <span class="form-hint" data-i18n="filters.save_path_hint">Absolute path on the box. Leave empty to use Transmission's default folder.</span>
+        </div>
         <div class="form-group" style="flex-direction: row; align-items: center; gap: 16px; margin-top: 8px;">
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0;">
+            <input type="checkbox" id="filter-add-paused">
+            <span data-i18n="filters.add_paused">Add torrents paused</span>
+          </label>
           <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0;">
             <input type="checkbox" id="filter-freeleech">
             <span data-i18n="filters.freeleech">Only Freeleech</span>
@@ -435,10 +443,10 @@
         <div class="form-group">
           <label for="indexer-preset" data-i18n="indexers.preset">Tracker / Preset</label>
           <select id="indexer-preset" class="sos-input">
-            <option value="" data-i18n="indexers.custom_preset">Custom / Torznab / Other</option>
+            <option value="" data-i18n="indexers.select_preset">— Select a built-in tracker / feed —</option>
           </select>
         </div>
-        <div id="indexer-advanced-hint-box" style="padding: 8px 10px; background: rgba(var(--sos-rgb), 0.08); border: 1px solid var(--sos-line); border-radius: 6px; font-size: 12px; line-height: 1.4; color: var(--sos-muted); margin-bottom: 6px;">
+        <div id="indexer-advanced-hint-box" style="padding: 8px 10px; background: rgba(var(--sos-rgb), 0.08); border: 1px solid var(--sos-line); border-radius: 6px; font-size: 12px; line-height: 1.4; color: var(--sos-text); margin-bottom: 6px;">
           <span data-i18n="indexers.advanced_hint">For trackers requiring IRC bot invites, download keys, or complex schemas, configure them directly in the full autobrr Web UI.</span>
           <div style="margin-top: 6px;">
             <button type="button" id="btn-indexer-open-webui" class="sos-btn sos-btn-sm" data-i18n="indexers.advanced_btn" style="font-size: 11px; padding: 3px 8px;">Open Advanced Setup (:7474)</button>
@@ -446,14 +454,16 @@
         </div>
         <div class="form-group">
           <label for="indexer-name" data-i18n="indexers.name">Indexer Name</label>
-          <input type="text" id="indexer-name" class="sos-input" placeholder="e.g. TorrentLeech">
+          <input type="text" id="indexer-name" class="sos-input" placeholder="e.g. BJ-Share">
         </div>
         <div class="form-group">
           <label for="indexer-identifier" data-i18n="indexers.identifier">Identifier</label>
-          <input type="text" id="indexer-identifier" class="sos-input" placeholder="e.g. torrentleech">
+          <input type="text" id="indexer-identifier" class="sos-input" readonly>
         </div>
         <div id="indexer-dynamic-fields"></div>
-        <div id="indexer-default-fields">
+        <div id="indexer-irc-fields" style="display:none;"></div>
+        <div id="indexer-feed-fields" style="display:none;"></div>
+        <div id="indexer-default-fields" style="display:none;">
           <div class="form-group">
             <label for="indexer-url" data-i18n="indexers.url">Base URL (Optional)</label>
             <input type="text" id="indexer-url" class="sos-input" placeholder="https://...">
@@ -541,6 +551,10 @@
           <label for="irc-server-pass" data-i18n="irc.server_pass">Server Password (Optional)</label>
           <input type="password" id="irc-server-pass" class="sos-input" placeholder="Server connection password">
         </div>
+        <div class="form-group">
+          <label for="irc-invite-cmd" data-i18n="irc.invite_command">Invite Command (Optional)</label>
+          <input type="text" id="irc-invite-cmd" class="sos-input" data-i18n-placeholder="irc.invite_placeholder" placeholder="e.g. BJAnnounce invite IRCKEY">
+        </div>
         <div class="form-row">
           <div class="form-group" style="flex: 2;">
             <label for="irc-channel-name" data-i18n="irc.channel_name">Announce Channel</label>
@@ -563,14 +577,14 @@
   <div class="sos-statusbar">
     <span id="sb-releases">0 releases monitored</span>
     <span id="sb-filters">0 active filters</span>
-    <span id="sb-account">Handover: --</span>
+    <span id="sb-transmission">Transmission: --</span>
     <span id="sb-updated">Updated: --</span>
   </div>
 
   <!-- Toast Container -->
   <div id="toast-container"></div>
 
-  <script src="app.js?v=1.1.0"></script>
+  <script src="app.js"></script>
 </body>
 
 </html>
