@@ -110,10 +110,13 @@ A push to `main` runs GitHub Actions:
    from `app.json`,
 3. a version that has no release yet becomes the release `<id>-v<version>`
    (versions with a `-`, e.g. `1.1.0-beta.1`, are pre-releases = beta channel),
-4. the catalog `index.json` is rebuilt and attached to the release `catalog`.
+4. the catalog `index.json` is rebuilt, signed (`index.json.sig`, ECDSA P-256,
+   secret `CATALOG_SIGNING_KEY` of the environment `catalog`, public key in
+   `keys/catalog.pub`) and attached to the release `catalog`.
 
-ShareOS downloads only `…/releases/download/catalog/index.json`, checks the
-SHA-256 of a package before installing it and serves web apps from their own
+ShareOS downloads only `…/releases/download/catalog/index.json` and its `.sig`,
+uses the catalog only with a valid signature (from 0.3.0-beta.16; the key is in
+the firmware), checks the SHA-256 of a package before installing it and serves web apps from their own
 port (8081) – another origin than the admin interface, so an app cannot use the
 admin login.
 
@@ -255,7 +258,7 @@ installed (its `"requires"` is not in the store) and is not merged.
 ## Own apps
 
 - **Upload:** APPS → Store → *Install package* takes a `.sapp` file (`tools/build.py` builds one). It is marked as “own / not verified”.
-- **Own catalog:** fork this repository (or use the same layout), run the workflow, then add `https://github.com/<you>/<repo>/releases/download/catalog/index.json` under APPS → Sources.
+- **Own catalog:** fork this repository (or use the same layout), run the workflow, then add `https://github.com/<you>/<repo>/releases/download/catalog/index.json` under APPS → Sources. Without the secret `CATALOG_SIGNING_KEY` the workflow publishes the catalog unsigned; ShareOS still uses it, marks its apps *not signed by the ShareOS project* and asks before installing them.
 
 Build locally: `tools/build.py` → `dist/`.
 
@@ -275,7 +278,7 @@ Apps für ShareOS. Sie erscheinen unter **APPS → Store** und werden mit einem
 Klick installiert – genauso wie Firmware-Updates angeboten werden.
 
 - Jede App liegt in `apps/<id>/` mit `app.json` (Name, Version, Herausgeber, Beschreibung, Typ, Startdatei, Symbol) und dem Ordner `files/`.
-- Ein Push auf `main` baut die Pakete (`.sapp` + SHA-256), legt für neue Versionen ein Release `<id>-v<version>` an (mit `-` in der Version = Beta) und erneuert den Katalog `index.json` im Release `catalog`.
+- Ein Push auf `main` baut die Pakete (`.sapp` + SHA-256), legt für neue Versionen ein Release `<id>-v<version>` an (mit `-` in der Version = Beta) und erneuert den Katalog `index.json` im Release `catalog` – signiert (`index.json.sig`, Secret `CATALOG_SIGNING_KEY` im Environment `catalog`, öffentlicher Schlüssel `keys/catalog.pub`). ShareOS nutzt den offiziellen Katalog ab 0.3.0-beta.16 nur mit gültiger Signatur.
 - Neue Version: App ändern, `version` in `app.json` erhöhen, Abschnitt in `CHANGELOG.md`, pushen.
 - **Berechtigungen:** `"permissions": ["cron"]` erlaubt geplante Aufgaben (`jobs` in `app.json`, Skript aus `files/`, Zeitplan im Cron-Format, höchstens alle 5 Minuten, max. 5). Sie laufen als eigener Benutzer `app-<id>` nur im Datenordner der App; der Admin kann Zeitpläne unter APPS → Aufgaben ändern oder abschalten. Ab ShareOS 0.1.0-beta.7.
 - **Fenster und Dateien** (ab ShareOS 0.1.0-beta.9): `"window"` legt die Fenstergröße fest, `"opens"` die Dateitypen, die die App aus dem Dateibrowser öffnet (`edit` darf zurückspeichern). Die Berechtigung `embed` zeigt eine reine Einstellungs-App direkt in ShareOS an. Mit der Berechtigung `files` (ab ShareOS 0.1.0-beta.11) arbeitet eine App mit den Ordnern der Box – mit den Rechten des angemeldeten Benutzers (`ShareOS.fs`). Für Aussehen, Menüleiste (Datei | Bearbeiten | Ansicht), geöffnete Datei und Nachrichten zwischen Apps gibt es `/_shareos/theme.css` und `/_shareos/app.js` (siehe oben). Farben nur über die Theme-Variablen (kein eigenes `--sos-*` im `:root`, sonst überschreibt die App das Aussehen des Benutzers). Übersetzungen: die Apps sind deutsch geschrieben, `sos-i18n.js` übersetzt sie mit `i18n/<sprache>.json` (sonst `i18n/en.json`) in die Sprache der Oberfläche – Werkzeug: `tools/i18n.py` (siehe oben).
