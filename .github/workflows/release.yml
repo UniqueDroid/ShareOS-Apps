@@ -3,8 +3,9 @@ name: Apps – build, release, catalog
 # Every app version (apps/<id>/app.json) becomes a release <id>-v<version>
 # with the package <id>-<version>.sapp and its .sha256. Versions with a "-"
 # (1.2.0-beta.1) are pre-releases = beta channel. Afterwards the catalog
-# index.json is rebuilt and uploaded to the release "catalog", which ShareOS
-# reads (one download, no GitHub API limit on the box).
+# index.json is rebuilt, signed (index.json.sig, secret CATALOG_SIGNING_KEY)
+# and uploaded to the release "catalog", which ShareOS reads (one download, no
+# GitHub API limit on the box).
 
 on:
   push:
@@ -24,6 +25,8 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-24.04
+    # the secret CATALOG_SIGNING_KEY lives in this environment (main only)
+    environment: catalog
     steps:
       - uses: actions/checkout@v4
       - name: Check manifests
@@ -55,12 +58,33 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GH_TOKEN: ${{ github.token }}
+          CATALOG_SIGNING_KEY: ${{ secrets.CATALOG_SIGNING_KEY }}
         run: |
           set -e
           tools/catalog.py > index.json
           cat index.json
+          # index.json lists the checksum of every package: it is signed, and
+          # ShareOS (from 0.3.0-beta.16) uses the official catalog only with a
+          # valid index.json.sig. A fork without the secret publishes unsigned.
+          files=index.json
+          if [ -n "$CATALOG_SIGNING_KEY" ]; then
+            key="$RUNNER_TEMP/catalog.key"
+            ( umask 077; printf '%s\n' "$CATALOG_SIGNING_KEY" > "$key" )
+            openssl dgst -sha256 -sign "$key" -out index.json.sig index.json
+            rm -f "$key"
+            # the signature must fit the public key the firmware carries
+            if [ -s keys/catalog.pub ]; then
+              openssl dgst -sha256 -verify keys/catalog.pub -signature index.json.sig index.json
+            fi
+            files="index.json index.json.sig"
+          elif [ "$GITHUB_REPOSITORY" = UniqueDroid/ShareOS-Apps ]; then
+            echo "::error::secret CATALOG_SIGNING_KEY is missing – the catalog is not published unsigned"
+            exit 1
+          else
+            echo "::notice::no CATALOG_SIGNING_KEY – catalog published without signature"
+          fi
           if ! gh release view catalog >/dev/null 2>&1; then
             gh release create catalog --title "App-Katalog" --latest=false \
               --notes "Katalog für den ShareOS-App-Store (index.json). Wird automatisch erneuert – bitte nicht von Hand ändern."
           fi
-          gh release upload catalog index.json --clobber
+          gh release upload catalog $files --clobber
